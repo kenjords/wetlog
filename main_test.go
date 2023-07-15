@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -186,7 +186,7 @@ func TestProcessFile(t *testing.T) {
 
 	// Write sample data to the system.log file
 	testFilePath := filepath.Join(testPath, "system.log")
-	err = ioutil.WriteFile(testFilePath, []byte("Sample log data"), 0644)
+	err = os.WriteFile(testFilePath, []byte("Sample log data"), 0644)
 	if err != nil {
 		t.Fatalf("Couldn't write to file: %v", err)
 	}
@@ -283,11 +283,14 @@ func TestPrintDatacenters(t *testing.T) {
 	PrintDatacenters(nodes)
 
 	// Reset the standard output
-	w.Close()
+	err := w.Close()
+	if err != nil {
+		t.Fatalf("Couldn't close pipe: %v", err)
+	}
 	os.Stdout = os.NewFile(1, "")
 
 	// Read the captured output from the pipe
-	capturedOutput, _ := ioutil.ReadAll(r)
+	capturedOutput, _ := io.ReadAll(r)
 	output := string(capturedOutput)
 
 	if output != expectedOutput {
