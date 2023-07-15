@@ -1,6 +1,6 @@
 # WetLog
-![test and build](https://github.com/kenjords/wetlog/.github/workflows/test_and_build.yml/badge.svg) 
-![release](https://github.com/kenjords/wetlog/.github/workflows/release_build.yml/badge.svg)
+![test and build](https://github.com/kenjords/wetlog/actions/workflows/test_and_build.yml/badge.svg) 
+![release](https://github.com/kenjords/wetlog/actions/workflows/release_build.yml/badge.svg)
 
 WetLog is a simple log file viewer for DS Diagnistics packaged system.log files.  
 It was developed as an artifact from prototyping for a larger project around DS case investigation tooling.  
