@@ -91,7 +91,7 @@ func TestParseDate(t *testing.T) {
 		{
 			name:    "valid date",
 			input:   "2023-07-13 12:01:01,000",
-			want:    time.Date(2023, 7, 13, 12, 01, 01, 0, time.UTC),
+			want:    time.Date(2023, 7, 13, 12, 0o1, 0o1, 0, time.UTC),
 			wantErr: false,
 		},
 		{
@@ -186,7 +186,7 @@ func TestProcessFile(t *testing.T) {
 
 	// Write sample data to the system.log file
 	testFilePath := filepath.Join(testPath, "system.log")
-	err = os.WriteFile(testFilePath, []byte("Sample log data"), 0644)
+	err = os.WriteFile(testFilePath, []byte("Sample log data"), 0o644)
 	if err != nil {
 		t.Fatalf("Couldn't write to file: %v", err)
 	}

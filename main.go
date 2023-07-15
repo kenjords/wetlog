@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -120,7 +121,8 @@ func main() {
 
 	nodes, err := ParseNodetoolStatus(file)
 	if err != nil {
-		log.Fatalf("Error while parsing the nodetool status output: %v", err)
+		log.Printf("Error while parsing the nodetool status output: %v", err)
+		syscall.Exit(1)
 	}
 
 	if *listDCs {
@@ -143,7 +145,8 @@ func main() {
 
 	sortFunc, ok := sortFunctions[*sortOption]
 	if !ok {
-		log.Fatalf("Invalid sort option: %s", *sortOption)
+		log.Printf("Invalid sort option: %s", *sortOption)
+		syscall.Exit(2)
 	}
 
 	var wg sync.WaitGroup
@@ -181,7 +184,7 @@ func main() {
 
 // ParseNodetoolStatus parses the output of nodetool status.
 func ParseNodetoolStatus(r io.Reader) ([]Node, error) {
-	//TODO implement being able to tell the status of the node (UN, DN, DL, UL, DJ, Uj, UM) and make it apart of the Node struct
+	// TODO implement being able to tell the status of the node (UN, DN, DL, UL, DJ, Uj, UM) and make it apart of the Node struct
 
 	scanner := bufio.NewScanner(r)
 	var nodes []Node
@@ -242,7 +245,7 @@ func ParseLogLevel(logLevelStr string) (LogLevel, error) {
 func ProcessFile(node Node, topLevelDir string, queries []string, logEntryChan chan *LogEntry) error {
 	logDir := filepath.Join(topLevelDir, "nodes", node.Address, "logs", "cassandra")
 	logFile := filepath.Join(logDir, "system.log")
-	file, err := os.Open(logFile)
+	file, err := os.Open(logFile) //nosec G304
 	if err != nil {
 		return err
 	}
