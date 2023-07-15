@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -21,13 +23,18 @@ type Node struct {
 	Datacenter string
 }
 
+// LogLevel represents a log level as an iota integer constant. The iota starts at 0 and increments by 1 for each LogLevel higher.
 type LogLevel int
 
 const (
+	// DEBUG is the lowest log level in Cassandra and will have detailed information about Cassandra actions.
 	DEBUG LogLevel = iota // 0
-	INFO                  // 1
-	WARN                  // 2
-	ERROR                 //	3
+	// INFO is the second lowest log level and is typically used in Cassandra for informative actions.
+	INFO // 1
+	// WARN in Cassandra is used to indicate that something is not right, but Cassandra can still function.
+	WARN // 2
+	// ERROR is the highest log level in Cassandra and is used to indicate that the particular action taken by cassandra has failed.
+	ERROR //	3
 )
 
 // LogEntry represents a log entry.
@@ -73,9 +80,20 @@ func (s ByLineNumber) Less(i, j int) bool {
 }
 
 // Less returns true if the node IP of the LogEntry at index i is before the node IP of the LogEntry at index j.
-func (s ByNodeIP) Less(i, j int) bool { return s.LogEntries[i].NodeIP < s.LogEntries[j].NodeIP }
+func (s ByNodeIP) Less(i, j int) bool {
+	ip1 := net.ParseIP(s.LogEntries[i].NodeIP)
+	ip2 := net.ParseIP(s.LogEntries[j].NodeIP)
+
+	// Fallback to lexicographical comparison if parsing fails
+	if ip1 == nil || ip2 == nil {
+		return strings.Compare(s.LogEntries[i].NodeIP, s.LogEntries[j].NodeIP) < 0
+	}
+
+	return bytes.Compare(ip1, ip2) < 0
+}
 
 func main() {
+	// TODO split main into smaller functions
 	nodetoolFile := flag.String("file", "", "Path to the nodetool status output file")
 	datacenters := flag.String("datacenters", "", "Comma-separated list of datacenter names")
 	listDCs := flag.Bool("list-dcs", false, "List all datacenters")
@@ -100,13 +118,13 @@ func main() {
 		err = file.Close()
 	}()
 
-	nodes, err := parseNodetoolStatus(file)
+	nodes, err := ParseNodetoolStatus(file)
 	if err != nil {
 		log.Fatalf("Error while parsing the nodetool status output: %v", err)
 	}
 
 	if *listDCs {
-		printDatacenters(nodes)
+		PrintDatacenters(nodes)
 		return
 	}
 
@@ -135,7 +153,7 @@ func main() {
 		wg.Add(1)
 		go func(node Node) {
 			defer wg.Done()
-			err := processFile(node, topLevelDir, queries, logEntryChan)
+			err := ProcessFile(node, topLevelDir, queries, logEntryChan)
 			if err != nil {
 				log.Printf("Error while processing logs for node %s: %v\n", node.Address, err)
 			}
@@ -157,17 +175,18 @@ func main() {
 	sortFunc(logEntries)
 
 	for _, entry := range logEntries {
-		fmt.Printf("%s:%s:%d: %s [%s] %s\n", entry.NodeIP, entry.FilePath, entry.LineNumber, entry.LogLevel, entry.Date, entry.Message)
+		fmt.Printf("%s:%s:%d: %v [%s] %s\n", entry.NodeIP, entry.FilePath, entry.LineNumber, entry.LogLevel, entry.Date, entry.Message)
 	}
 }
 
-// parseNodetoolStatus parses the output of nodetool status.
-func parseNodetoolStatus(r io.Reader) ([]Node, error) {
+// ParseNodetoolStatus parses the output of nodetool status.
+func ParseNodetoolStatus(r io.Reader) ([]Node, error) {
 	//TODO implement being able to tell the status of the node (UN, DN, DL, UL, DJ, Uj, UM) and make it apart of the Node struct
 
 	scanner := bufio.NewScanner(r)
 	var nodes []Node
 	var datacenter string
+	var foundNodeStatus bool
 
 	for scanner.Scan() {
 		line := scanner.Text()
@@ -182,8 +201,13 @@ func parseNodetoolStatus(r io.Reader) ([]Node, error) {
 			fields := strings.Fields(line)
 			if len(fields) > 1 {
 				nodes = append(nodes, Node{Address: fields[1], Datacenter: datacenter})
+				foundNodeStatus = true
 			}
 		}
+	}
+
+	if !foundNodeStatus {
+		return nil, fmt.Errorf("No nodes found in nodetool status output")
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -193,13 +217,13 @@ func parseNodetoolStatus(r io.Reader) ([]Node, error) {
 	return nodes, nil
 }
 
-// parseDate parses a date string in the format "2006-01-02 15:04:05,000".
-func parseDate(dateTimeStr string) (time.Time, error) {
+// ParseDate parses a date string in the format "2006-01-02 15:04:05,000".
+func ParseDate(dateTimeStr string) (time.Time, error) {
 	return time.Parse("2006-01-02 15:04:05,000", dateTimeStr)
 }
 
-// parseLogLevel parses a log level string into an iota.
-func parseLogLevel(logLevelStr string) (LogLevel, error) {
+// ParseLogLevel parses a log level string into an iota.
+func ParseLogLevel(logLevelStr string) (LogLevel, error) {
 	switch logLevelStr {
 	case "DEBUG":
 		return DEBUG, nil
@@ -214,8 +238,8 @@ func parseLogLevel(logLevelStr string) (LogLevel, error) {
 	}
 }
 
-// processFile processes a log file.
-func processFile(node Node, topLevelDir string, queries []string, logEntryChan chan *LogEntry) error {
+// ProcessFile processes a log file.
+func ProcessFile(node Node, topLevelDir string, queries []string, logEntryChan chan *LogEntry) error {
 	logDir := filepath.Join(topLevelDir, "nodes", node.Address, "logs", "cassandra")
 	logFile := filepath.Join(logDir, "system.log")
 	file, err := os.Open(logFile)
@@ -240,7 +264,10 @@ func processFile(node Node, topLevelDir string, queries []string, logEntryChan c
 			logEntryChan <- currentEntry
 		}
 
-		currentEntry = processLine(line, lineNumber, logFile)
+		currentEntry, err = ProcessLine(line, lineNumber, logFile)
+		if err != nil {
+			continue
+		}
 	}
 
 	if currentEntry != nil && matchQuery(currentEntry, queries) {
@@ -249,30 +276,30 @@ func processFile(node Node, topLevelDir string, queries []string, logEntryChan c
 	return scanner.Err()
 }
 
-// processLine processes a line of a log file.
-func processLine(line string, lineNumber int, filePath string) *LogEntry {
+// ProcessLine processes a line of a log file.
+func ProcessLine(line string, lineNumber int, filePath string) (*LogEntry, error) {
 	logLevelRegex := regexp.MustCompile(`^(\w+)\s`)
 	logLevelMatch := logLevelRegex.FindStringSubmatch(line)
 
 	if logLevelMatch == nil {
-		return nil
+		return nil, nil
 	}
 
-	logLevel, err := parseLogLevel(logLevelMatch[1])
+	logLevel, err := ParseLogLevel(logLevelMatch[1])
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	dateTimeRegex := regexp.MustCompile(`(\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2},\d{3})`)
 	dateTimeMatch := dateTimeRegex.FindStringSubmatch(line)
 
 	if dateTimeMatch == nil {
-		return nil
+		return nil, nil
 	}
 
-	date, err := parseDate(dateTimeMatch[1])
+	date, err := ParseDate(dateTimeMatch[1])
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	return &LogEntry{
@@ -282,11 +309,11 @@ func processLine(line string, lineNumber int, filePath string) *LogEntry {
 		NodeIP:     "",
 		FilePath:   filePath,
 		Message:    line,
-	}
+	}, err
 }
 
-// printDatacenters prints the datacenters in the nodetool status output.
-func printDatacenters(nodes []Node) {
+// PrintDatacenters prints the datacenters in the nodetool status output.
+func PrintDatacenters(nodes []Node) {
 	dcSet := make(map[string]struct{})
 	for _, node := range nodes {
 		dcSet[node.Datacenter] = struct{}{}

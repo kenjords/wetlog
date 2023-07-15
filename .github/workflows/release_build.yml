@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        go: ['stable']
+        os: [ubuntu-latest]
+    runs-on: $({ matrix.os })
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+        id: go
+
+      - name: Run "securego/gosec" for security checks
+        run: go run github.com/securego/gosec/v2/cmd/gosec@latest -quiet -fmt=json -out=results.json ./...
+
+      - name: Run "go-critic/go-critic" for code quality checks
+        run: go run github.com/go-critic/go-critic/cmd/gocritic check -enableAll./...
+
+      - name: GoRelease
+        uses: goreleaser/goreleaser-action@master
+        with:
+          version: latest
+          args: release --rm-dist
+          workdir: ./
+        env:
+          GITHUB_TOKEN: ${{ secrets.GO_RELEASER_GITHUB_TOKEN }}
