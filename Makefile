@@ -20,7 +20,7 @@ test: clean init security critics
 
 
 install: test
-	CGO_ENABLED=0 go build -ldflags="-s -w" -o $(GOPATH)/bin/cgapp ./cmd/cgapp/main.go
+	CGO_ENABLED=0 go build -ldflags="-s -w" -o $(GOPATH)/bin/wetlog ./main.go
 
 build: test
 	$(GOPATH)/bin/goreleaser --snapshot --skip-publish --rm-dist
@@ -30,16 +30,13 @@ release: test
 	$(GOPATH)/bin/goreleaser --snapshot --skip-publish --rm-dist
 
 build-and-push-images: test
-	docker build -t docker.io/koddr/cgapp:latest .
-	docker push docker.io/koddr/cgapp:latest
-	docker build -t docker.io/koddr/cgapp:$(VERSION) .
-	docker push docker.io/koddr/cgapp:$(VERSION)
-	docker image rm docker.io/koddr/cgapp:$(VERSION)
-
-update-pkg-cache:
-	curl -i https://proxy.golang.org/github.com/create-go-app/cli/v4/@v/v$(VERSION).info
+	docker build -t docker.io/kenjords/wetlog:latest .
+	docker push docker.io/kenjords/wetlog:latest
+	docker build -t docker.io/kenjords/wetlog:$(VERSION) .
+	docker push docker.io/kenjords/wetlog:$(VERSION)
+	docker image rm docker.io/kenjords/wetlog:$(VERSION)
 
 delete-tag:
 	git tag --delete v$(VERSION)
-	docker image rm docker.io/koddr/cgapp:latest
-	docker image rm docker.io/koddr/cgapp:$(VERSION)
+	docker image rm docker.io/kenjords/wetlog:latest
+	docker image rm docker.io/kenjords/wetlog:$(VERSION)
