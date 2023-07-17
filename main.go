@@ -18,6 +18,10 @@ import (
 	"time"
 )
 
+var (
+	wetlogVersion = "v0.4"
+)
+
 // Node represents a node in the cluster.
 type Node struct {
 	Address    string
@@ -93,6 +97,10 @@ func (s ByNodeIP) Less(i, j int) bool {
 	return bytes.Compare(ip1, ip2) < 0
 }
 
+func PrintVersion() string {
+	return fmt.Sprintf("%s\n", wetlogVersion)
+}
+
 func main() {
 	// TODO split main into smaller functions
 	nodetoolFile := flag.String("file", "", "Path to the nodetool status output file")
@@ -100,7 +108,13 @@ func main() {
 	listDCs := flag.Bool("list-dcs", false, "List all datacenters")
 	sortOption := flag.String("sort", "date", "Sort by date, loglevel, linenumber, or nodeip")
 	query := flag.String("query", "", "Comma-separated search terms in log entries")
+	version := flag.Bool("version", false, "Print version and exit")
 	flag.Parse()
+
+	if *version {
+		fmt.Println(PrintVersion())
+		os.Exit(0)
+	}
 
 	if *nodetoolFile == "" || (*datacenters == "" && !*listDCs) || flag.NArg() != 1 {
 		flag.Usage()
