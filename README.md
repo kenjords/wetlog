@@ -2,13 +2,16 @@
 ![test and build](https://github.com/kenjords/wetlog/actions/workflows/test_and_build.yml/badge.svg) 
 ![release](https://github.com/kenjords/wetlog/actions/workflows/release_build.yml/badge.svg)
 
-WetLog is a simple log file viewer for DS Diagnistics packaged system.log files.  
+WetLog is a simple log file viewer for DS Diagnostics packaged system.log files.  
 It was developed as an artifact from prototyping for a larger project around DS case investigation tooling.  
 I created it as its own application as I saw that it could potentially be useful as it is.
 It is not intended to be a full featured log viewer, but rather a simple tool to help with the investigation of DS cases.
 It allows being able to view and segregate logs by DC. It also has some additional sorting features (thanks og-ken)  
 for the idea. 
 
+WetLog is a commandline application and is intended to be used alongside other text processing tools such as grep, awk, etc.
+
+## Name
 The name WetLog is a reference to wading through the swamp of logs that is the system.log file to find only those logs that are   
 relevant to the case at hand.
 
@@ -18,8 +21,13 @@ relevant to the case at hand.
 
 ### Installation
 
-WetLog is a single executable file. It can be downloaded from the [releases]() page. 
+WetLog is a single executable file. It can be downloaded from the [releases]() page.
+It is available for Linux, Windows, and MacOS and is packaged as a tar.gz file. 
+To install it, simply download the file, extract it to the location of your choice, and run it.
 
+```bash
+tar -C /path/to/install -xzf wetlog_<version>_<os>_<arch>.tar.gz
+```
 
 ### Usage
 
@@ -80,4 +88,4 @@ Get logs from multiple Datacenters sorted by Log level and only show logs that c
 Currently, the behavior of the query flag is to parse the comma delimited list of queries sequentially.
 This means that it will match the first term, then match with logs returned from the first term that contain the second  
 term. 
-This may change in the future depending on proves the most useful in practice. 
+This may change in the future depending on what proves the most useful in practice. 
