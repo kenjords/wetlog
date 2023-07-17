@@ -11,6 +11,16 @@ import (
 	"time"
 )
 
+func TestPrintVersion(t *testing.T) {
+	v := PrintVersion()
+
+	want := wetlogVersion + "\n"
+	got := v
+	if got != want {
+		t.Errorf("printVersion() = %v, want %v", got, want)
+	}
+}
+
 func TestParseNodetoolStatus(t *testing.T) {
 	testCases := []struct {
 		name      string
